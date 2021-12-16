@@ -1,0 +1,15 @@
+.DS_Store
+
+# environment variables
+.env
+
+**egg-info/
+
+# python files
+**/.pytest_cache/
+**/__pycache__
+**/.venv/
+**/.ipynb_checkpoints/
+
+# jupyter notebook (if there are some)
+*ipynb
