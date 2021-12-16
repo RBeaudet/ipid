@@ -8,7 +8,7 @@ from .template import Ipid
 
 # regex
 
-regex = {
+regex_field = {
     # applicability
     "localization": re.compile(r"où suis-je couvert", re.IGNORECASE),
     "obligations": re.compile(r"quelles sont mes obligations", re.IGNORECASE),
@@ -29,6 +29,7 @@ regex = {
 
 siren_regex = re.compile(r"\b(?:\d\s?){9}\b", re.IGNORECASE)
 typology_regex = re.compile(r"([^\n]+)\n", re.IGNORECASE)
+product_regex = re.compile(r"produit\s?:([^\n]+)\n", re.IGNORECASE)
 
 
 class Parser:
@@ -54,9 +55,11 @@ class Parser:
 
         # product extraction
         template.product.description = self.parse_field(text, "description")
+        template.product.product = self.regex_group_search(text, product_regex)
+        template.product.typology = self.regex_group_search(text, typology_regex)
 
         # insurer extraction
-        template.insurer.siren = self.regex_search(text, siren_regex)
+        template.insurer.siren = self.siren_search(text)
 
         return template
 
@@ -67,10 +70,10 @@ class Parser:
         is detected. If no starting nor ending field is detected, return None.
         """
         # starting field
-        match_start = regex[starting_field].search(text)
+        match_start = regex_field[starting_field].search(text)
 
         # ending fields
-        remaining_regex = copy.deepcopy(regex)
+        remaining_regex = copy.deepcopy(regex_field)
         del remaining_regex[starting_field]
         ending_regex = re.compile('|'.join([x.pattern for x in list(remaining_regex.values())]), re.IGNORECASE)
         
@@ -92,19 +95,19 @@ class Parser:
         return text[match_start.span()[1]:]
 
     @staticmethod
-    def regex_search(text: str, regex: re.Pattern) -> Union[str, List]:
-        match = re.finditer(regex, text)
+    def regex_group_search(text: str, regex: re.Pattern) -> Union[str, List]:
+        match = re.search(regex, text)
+        if match:
+            output = match.group(1).strip()
+        else:
+            output = "None"
+        return output
+
+    @staticmethod
+    def siren_search(text: str) -> Union[str, List]:
+        match = re.finditer(siren_regex, text)
         if not match:
             sirens = "None"
         else:
             sirens = [(text[x.span()[0]:x.span()[1]], x.span()[0], x.span()[1]) for x in match]
         return sirens
-
-    @staticmethod
-    def typology_search(text: str) -> str:
-        match = re.search(typology_regex, text)
-        if match:
-            typology = match.group(1)
-        else:
-            typology = "None"
-        return typology
