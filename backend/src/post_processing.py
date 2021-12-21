@@ -47,12 +47,15 @@ class PostProcessing:
     def _process(text: str) -> str:
         # clean punctuation
         text = re.sub(r"[\?!✓\uf0fb]+", " - ", text)
-        text = re.sub(r"-+", " \n- ", text)
-        text = re.sub(r":", " ", text)
-        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r":", " ",text)
+        text = re.sub(r"[\s\t]+", " ", text)
 
         # remove new line characters that should not be considered as new lines
         text = re.sub(regex_not_new_line, r"\2", text)
-        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r"[\s\t]+", " ", text)
+
+        text = re.sub(r"-+", " \n- ", text)
+        text = re.sub(r"(\n-)([\s\t]*\n-)", r"\1", text)
+        text = re.sub(r"[\s\t]+", " ", text)
         
-        return text
+        return text.strip()

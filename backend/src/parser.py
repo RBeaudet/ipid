@@ -24,7 +24,10 @@ regex_field = {
     "services": re.compile(r"les[\t\s\n]services[\t\s\n]et[\t\s\n]avantages", re.IGNORECASE),
 
     # product
-    "description": re.compile(r"type[\t\s\n]d[’']assurance", re.IGNORECASE)
+    "description": re.compile(r"type[\t\s\n]d[’']assurance[\t\s\n]s[’']agit-il", re.IGNORECASE),
+
+    # other separators
+    "covered": re.compile(r"qu[’']est-ce[\t\s\n]qui[\t\s\n]est[\t\s\n]assuré", re.IGNORECASE)
 }
 
 siren_regex = re.compile(r"\b(?:\d\s?){9}\b", re.IGNORECASE)
