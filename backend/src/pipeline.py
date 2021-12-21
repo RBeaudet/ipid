@@ -1,4 +1,5 @@
 from .parser import Parser
+from .post_processing import PostProcessing
 from .reader import read_pdf
 from .template import Ipid
 
@@ -20,8 +21,11 @@ def parse_document(path: str) -> Ipid:
     # 2. extract content
     parser = Parser()
     template = Ipid()
-    #for page in document:
-    #    template = parser.parse_document(template, page)
-    filled_template = parser.parse_document(template, document[0])
+    for page in document:
+        template = parser.parse_document(template, page)
 
-    return filled_template
+    # 3. post-processing
+    post_processor = PostProcessing()
+    template = post_processor.process(template)
+
+    return template

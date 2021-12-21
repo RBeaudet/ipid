@@ -1,20 +1,27 @@
+from typing import List
+
 from pydantic import BaseModel, validator
 
 
 class Insurer(BaseModel):
-    name: str = "None"
-    siren: str = "None"
+    name: str = ""
+    siren: List = []
 
-    @validator('*')
-    def type_check(cls, v):
+    @validator('name')
+    def type_check_name(cls, v):
         if not isinstance(v, str):
             raise TypeError('must be string')
 
+    @validator('siren')
+    def type_check_siren(cls, v):
+        if not isinstance(v, List):
+            raise TypeError('must be list')
+
 
 class Product(BaseModel):
-    typology: str = "None"
-    product: str = "None"
-    description: str = "None"
+    typology: str = ""
+    product: str = ""
+    description: str = ""
 
     @validator('*')
     def type_check(cls, v):
@@ -23,11 +30,11 @@ class Product(BaseModel):
 
 
 class Coverage(BaseModel):
-    always_covered: str = "None"
-    optionally_covered: str = "None"
-    not_covered: str = "None"
-    exclusions: str = "None"
-    services: str = "None"
+    always_covered: str = ""
+    optionally_covered: str = ""
+    not_covered: str = ""
+    exclusions: str = ""
+    services: str = ""
 
     @validator('*')
     def type_check(cls, v):
@@ -36,11 +43,11 @@ class Coverage(BaseModel):
 
 
 class Applicability(BaseModel):
-    obligations: str = "None"
-    localization: str = "None"
-    payment_options: str = "None"
-    start_date: str = "None"
-    termination: str = "None"
+    obligations: str = ""
+    localization: str = ""
+    payment_options: str = ""
+    start_date: str = ""
+    termination: str = ""
 
     @validator('*')
     def type_check(cls, v):

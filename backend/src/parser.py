@@ -1,35 +1,38 @@
 import copy
 import re
-from typing import List, Union
+from typing import List
 
 from fitz.fitz import Page
 
 from .template import Ipid
 
-# regex
+## regex
 
 regex_field = {
     # applicability
-    "localization": re.compile(r"où suis-je couvert", re.IGNORECASE),
-    "obligations": re.compile(r"quelles sont mes obligations", re.IGNORECASE),
-    "payment_options": re.compile(r"quand et comment effectuer les paiements", re.IGNORECASE),
-    "start_date": re.compile(r"quand commence la couverture", re.IGNORECASE),
-    "termination": re.compile(r"comment puis-je résilier le contrat", re.IGNORECASE),
+    "localization": re.compile(r"où[\t\s\n]suis-je[\t\s\n]couvert", re.IGNORECASE),
+    "obligations": re.compile(r"quelles[\t\s\n]sont[\t\s\n]mes[\t\s\n]obligations", re.IGNORECASE),
+    "payment_options": re.compile(r"effectuer[\t\s\n]les[\t\s\n]paiements", re.IGNORECASE),
+    "start_date": re.compile(r"quand[\t\s\n]commence[\t\s\n]la[\t\s\n]couverture[\t\s\n]et[\t\s\n]quand[\t\s\n]prend-elle[\t\s\n]fin", re.IGNORECASE),
+    "termination": re.compile(r"comment[\t\s\n]puis-je[\t\s\n]résilier[\t\s\n]le[\t\s\n]contrat", re.IGNORECASE),
 
     # coverage
-    "always_covered": re.compile(r"les garanties systématiquement prévues", re.IGNORECASE),
-    "optionally_covered": re.compile(r"les garanties optionnelles", re.IGNORECASE),
-    "not_covered": re.compile(r"qu’est-ce qui n’est pas assuré", re.IGNORECASE),
-    "exclusions": re.compile(r"y-a-t-il des exclusions à la couverture", re.IGNORECASE),
-    "services": re.compile(r"les services et avantages", re.IGNORECASE),
+    "always_covered": re.compile(r"les[\t\s\n]garanties[\t\s\n]systématiquement[\t\s\n]prévues", re.IGNORECASE),
+    "optionally_covered": re.compile(r"les[\t\s\n]garanties[\t\s\n]optionnelles", re.IGNORECASE),
+    "not_covered": re.compile(r"qu[’']est-ce[\t\s\n]qui[\t\s\n]n[’']est[\t\s\n]pas[\t\s\n]assuré", re.IGNORECASE),
+    "exclusions": re.compile(r"y-a-t-il[\t\s\n]des[\t\s\n]exclusions[\t\s\n]à[\t\s\n]la[\t\s\n]couverture", re.IGNORECASE),
+    "services": re.compile(r"les[\t\s\n]services[\t\s\n]et[\t\s\n]avantages", re.IGNORECASE),
 
     # product
-    "description": re.compile(r"type d'assurance", re.IGNORECASE)
+    "description": re.compile(r"type[\t\s\n]d[’']assurance", re.IGNORECASE)
 }
 
 siren_regex = re.compile(r"\b(?:\d\s?){9}\b", re.IGNORECASE)
 typology_regex = re.compile(r"([^\n]+)\n", re.IGNORECASE)
 product_regex = re.compile(r"produit\s?:([^\n]+)\n", re.IGNORECASE)
+
+# non-exhaustive list
+insurer_name_regex = re.compile(r"\b(axa|ag2r|matmut|groupama)\b", re.IGNORECASE)
 
 
 class Parser:
@@ -40,34 +43,35 @@ class Parser:
         text = page.get_text("text")
 
         # extract coverage
-        template.coverage.always_covered = self.parse_field(text, "always_covered")
-        template.coverage.optionally_covered = self.parse_field(text, "optionally_covered")
-        template.coverage.not_covered = self.parse_field(text, "not_covered")
-        template.coverage.exclusions = self.parse_field(text, "exclusions")
-        template.coverage.services = self.parse_field(text, "services")
+        template.coverage.always_covered += self.parse_field(text, "always_covered")
+        template.coverage.optionally_covered += self.parse_field(text, "optionally_covered")
+        template.coverage.not_covered += self.parse_field(text, "not_covered")
+        template.coverage.exclusions += self.parse_field(text, "exclusions")
+        template.coverage.services += self.parse_field(text, "services")
 
         # extract applicability
-        template.applicability.obligations = self.parse_field(text, "obligations")
-        template.applicability.localization = self.parse_field(text, "localization")
-        template.applicability.payment_options = self.parse_field(text, "payment_options")
-        template.applicability.start_date = self.parse_field(text, "start_date")
-        template.applicability.termination = self.parse_field(text, "termination")
+        template.applicability.obligations += self.parse_field(text, "obligations")
+        template.applicability.localization += self.parse_field(text, "localization")
+        template.applicability.payment_options += self.parse_field(text, "payment_options")
+        template.applicability.start_date += self.parse_field(text, "start_date")
+        template.applicability.termination += self.parse_field(text, "termination")
 
         # product extraction
-        template.product.description = self.parse_field(text, "description")
-        template.product.product = self.regex_group_search(text, product_regex)
-        template.product.typology = self.regex_group_search(text, typology_regex)
+        template.product.description += self.parse_field(text, "description")
+        template.product.product += self.product_search(text)
+        template.product.typology = self.typology_search(text=text, existing_field=template.product.typology)
 
         # insurer extraction
-        template.insurer.siren = self.siren_search(text)
+        template.insurer.name = self.insurer_name_search(text=text, existing_field=template.insurer.name)
+        template.insurer.siren.extend(self.siren_search(text))
 
         return template
 
     @staticmethod
-    def parse_field(text: str, starting_field: str) -> Union[str, None]:
+    def parse_field(text: str, starting_field: str) -> str:
         """Extract relevant paragraph from `text`. First, detect beginning of text
         to extract by looking for `starting_field`, and then stops when any other field
-        is detected. If no starting nor ending field is detected, return None.
+        is detected. If no starting nor ending field is detected, return empty string.
         """
         # starting field
         match_start = regex_field[starting_field].search(text)
@@ -81,7 +85,7 @@ class Parser:
         matches_end = sorted(matches_end, key = lambda x: x[1])
         
         if not match_start:
-            return "None"
+            return ""
         
         if not matches_end:
             return text[match_start.span()[1]:]
@@ -95,19 +99,56 @@ class Parser:
         return text[match_start.span()[1]:]
 
     @staticmethod
-    def regex_group_search(text: str, regex: re.Pattern) -> Union[str, List]:
-        match = re.search(regex, text)
+    def product_search(text: str) -> str:
+        """Parse product name using a regex search. If nothing is found,
+        return an empty string.
+        """
+        match = re.search(product_regex, text)
         if match:
             output = match.group(1).strip()
         else:
-            output = "None"
+            output = ""
         return output
 
     @staticmethod
-    def siren_search(text: str) -> Union[str, List]:
+    def siren_search(text: str) -> List[str]:
+        """Parse SIREN number by simple regex search. There can be several SIREN
+        numbers, thus we return a list.
+        """
         match = re.finditer(siren_regex, text)
         if not match:
-            sirens = "None"
+            sirens = []
         else:
-            sirens = [(text[x.span()[0]:x.span()[1]], x.span()[0], x.span()[1]) for x in match]
+            sirens = [text[x.span()[0]:x.span()[1]] for x in match]
         return sirens
+
+    @staticmethod
+    def typology_search(text: str, existing_field: str) -> str:
+        """Parse typology of insurance product. This is typically the first piece of text 
+        in the first page of the document. If `existing_field` is already filled, then it means
+        typology has already been extracted in the previous page. Otherwise, we look for typology
+        by regex search.
+        """
+        if len(existing_field) > 0:
+            return existing_field
+        else:
+            match = re.search(typology_regex, text)
+            if match:
+                output = match.group(1).strip()
+            else:
+                output = ""
+        return output
+
+    @staticmethod
+    def insurer_name_search(text: str, existing_field: str) -> str:
+        """Parse name of insurer, and return it in uppercase letters.
+        """
+        if len(existing_field) > 0:
+            return existing_field
+        else:
+            match = re.search(insurer_name_regex, text)
+            if match:
+                output = match.group(0).strip().upper()
+            else:
+                output = ""
+        return output
